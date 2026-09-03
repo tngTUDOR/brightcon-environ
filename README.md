@@ -229,7 +229,13 @@ repository with read access, and point `repo.ssh_key` at the private half.
 
 ## Development
 
-Notable changes are recorded in [CHANGES.md](CHANGES.md).
+Notable changes are recorded in [CHANGES.md](CHANGES.md). Longer-form docs live
+under [`docs/`](docs/) and are published via Read the Docs
+(`.readthedocs.yaml`). Build them locally with:
+
+```bash
+uv run --group docs sphinx-build -b html docs docs/_build/html
+```
 
 ```bash
 uv sync

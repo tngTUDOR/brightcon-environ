@@ -27,6 +27,12 @@ uv run ruff check --fix .
 uv run --group docs sphinx-build -b html docs docs/_build/html
 ```
 
+Published builds run on [Read the Docs](https://readthedocs.org/) from
+[`.readthedocs.yaml`](../.readthedocs.yaml): Python 3.14, `uv sync --group docs`,
+and Sphinx with `fail_on_warning`. Import the GitHub repository on Read the Docs
+(project slug `brightcon-environ`) and enable builds for `main` (and optionally
+`develop`).
+
 ## Module map
 
 | Module | Responsibility |

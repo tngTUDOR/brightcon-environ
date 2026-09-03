@@ -11,6 +11,8 @@ Everything below is the initial, not yet released feature set of the service.
 
 ### Added
 
+- Read the Docs build config (`.readthedocs.yaml`): Python 3.14, `uv sync` with
+  the `docs` dependency group, and Sphinx with `fail_on_warning`.
 - Webhook receiver at `POST /hooks/github`. Deliveries are authenticated with
   `X-Hub-Signature-256`, filtered by ref, answered with `202 Accepted` and a job
   id, and rebuilt asynchronously so GitHub never waits for a build.
