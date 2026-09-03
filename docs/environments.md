@@ -1,5 +1,11 @@
 # Defining environments
 
+```{note}
+**Adding a kernel to the conference repo?** Start with
+[For contributors](for-contributors.md) — copy-paste templates and a checklist.
+This page is the full specification for admins and edge cases.
+```
+
 Definition files may live anywhere in the watched repository, at any depth. Set
 `defaults.search_roots` to restrict the scan to particular directories.
 
@@ -16,6 +22,9 @@ formats name their environment the same way.
 | `requirements-<name>.txt` | uv (or pip) into a venv | `<name>` |
 | `requirements-<name>.lock` | pinned input for the same environment | `<name>` |
 | `pyproject-<name>.toml` | uv, from the project metadata | `<name>` |
+
+Conda YAML files must be portable to Linux: hand-write them, or export with
+`--from-history` — see {ref}`exporting-from-history`.
 
 Names must match `^[a-z0-9][a-z0-9._-]{0,63}$` and must not be one of `user`,
 `hub`, `base`, `root`, `python3`, `envs` or `share`. Anything else is refused

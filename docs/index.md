@@ -8,6 +8,15 @@ again from scratch, and its Jupyter kernelspec is re-registered.
 Three definition formats are supported: mamba/conda `environment` YAML, pip
 requirement lists, and uv project metadata.
 
+```{tip}
+**Conference repo contributor?** You probably want
+[For contributors](for-contributors.md) — how to add `environment-*.yml` or
+`requirements-*.txt` so your kernel shows up in JupyterHub.
+
+**Server admin or maintainer?** Continue below, then see [Deployment](deployment.md)
+and [Configuration](configuration.md).
+```
+
 ## What happens on a push
 
 1. GitHub posts the push to `POST /hooks/github`.
@@ -32,6 +41,7 @@ a new branch -- the service falls back to scanning every definition file.
 ```{toctree}
 :maxdepth: 2
 
+for-contributors
 environments
 configuration
 deployment
