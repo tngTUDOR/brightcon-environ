@@ -18,6 +18,8 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
+          # Parallel jobs race when they share a cache key; suffix by job name.
+          cache-suffix: ${{ github.job }}
 
       - name: Install the project
         run: uv sync --locked
@@ -37,6 +39,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
+          cache-suffix: ${{ github.job }}
 
       - name: Install the project
         run: uv sync --locked
