@@ -1,0 +1,37 @@
+# TLJH server configuration.
+#
+# Identical to deploy/config.local.toml except for [tools]: on a real TLJH box
+# every tool lives in the user environment at /opt/tljh/user.
+#
+# Install as /opt/tljh/config/environ.toml.
+#
+# uv is not part of a stock TLJH install; add it with
+#   sudo -E /opt/tljh/user/bin/conda install -c conda-forge uv
+
+[repo]
+url = "git@github.com:CHANGE-ME/course-environments.git"
+branch = "main"
+path = "/opt/tljh/environ/repo"
+# ssh_key = "/opt/tljh/environ/deploy_key"
+
+[paths]
+env_root = "/opt/tljh/user/envs"
+kernel_prefix = "/opt/tljh/user"
+state_dir = "/opt/tljh/environ/state"
+log_dir = "/opt/tljh/environ/logs"
+
+[tools]
+git = "/usr/bin/git"
+conda = "/opt/tljh/user/bin/mamba"
+uv = "/opt/tljh/user/bin/uv"
+
+[server]
+host = "127.0.0.1"
+port = 8787
+
+[defaults]
+python = "3.12"
+installer = "uv"
+conda_channels = ["conda-forge"]
+timeout_seconds = 3600
+# search_roots = ["environments"]

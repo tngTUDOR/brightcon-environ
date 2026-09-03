@@ -1,0 +1,25 @@
+[Unit]
+Description=Rebuild JupyterHub environments from GitHub webhooks
+After=network.target
+Wants=network-online.target
+
+[Service]
+# Creating environments under /opt/tljh/user and writing kernelspecs into the
+# shared prefix are root operations, the same ones a TLJH admin performs with
+# sudo from a terminal.
+User=root
+UMask=0022
+Environment="ENVIRON_CONFIG=/opt/tljh/config/environ.toml"
+EnvironmentFile=/etc/brightcon-environ.env
+ExecStart=/opt/tljh/environ/venv/bin/environ serve
+Restart=always
+RestartSec=5
+
+# The service only ever writes under these trees.
+ProtectHome=read-only
+ReadWritePaths=/opt/tljh /usr/local/share/jupyter
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

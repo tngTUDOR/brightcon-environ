@@ -1,0 +1,35 @@
+# Local test configuration.
+#
+# The paths are identical to a real TLJH box; only [tools] differs, because a
+# local Fedora machine has miniforge and uv in the user's home rather than in
+# the TLJH user environment.
+#
+# Install as /opt/tljh/config/environ.toml, or point ENVIRON_CONFIG at it.
+
+[repo]
+url = "git@github.com:CHANGE-ME/course-environments.git"
+branch = "main"
+path = "/opt/tljh/environ/repo"
+# ssh_key = "/opt/tljh/environ/deploy_key"
+
+[paths]
+env_root = "/opt/tljh/user/envs"
+kernel_prefix = "/opt/tljh/user"
+state_dir = "/opt/tljh/environ/state"
+log_dir = "/opt/tljh/environ/logs"
+
+[tools]
+git = "/usr/bin/git"
+conda = "/home/tomas/miniforge3/bin/mamba"
+uv = "/home/tomas/.local/bin/uv"
+
+[server]
+host = "127.0.0.1"
+port = 8787
+
+[defaults]
+python = "3.12"
+installer = "uv"
+conda_channels = ["conda-forge"]
+timeout_seconds = 3600
+# search_roots = ["environments"]
