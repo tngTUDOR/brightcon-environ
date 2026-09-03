@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Everything below is the initial, not yet released feature set of the service.
+## [1.0.0]
+
+Initial release of the service.
 
 ### Added
 
