@@ -12,6 +12,10 @@ wheels/
 # Editor / tooling
 tags
 .pytest_cache/
+.ruff_cache/
+
+# Built documentation
+docs/_build/
 
 # Local secrets
 *.env

@@ -46,8 +46,8 @@ Everything below is the initial, not yet released feature set of the service.
   way TLJH documents it.
 - Cleanup of failed builds, so a broken kernel never appears in the launcher.
 - Persistent state in `environments.json` and a per-job log file.
-- The `environ` command line tool, with `serve`, `plan`, `sync` and `list`
-  subcommands.
+- The `environ` command line tool, with `serve`, `plan`, `sync`, `list` and
+  `remove` subcommands.
 - TOML configuration with secrets read from the environment. The webhook
   endpoint fails closed with `503` when `GITHUB_WEBHOOK_SECRET` is unset rather
   than accepting unauthenticated builds.
@@ -59,3 +59,5 @@ Everything below is the initial, not yet released feature set of the service.
   and the API, with a `slow` marker for the tests that build a real environment.
 - ruff for formatting and linting, enforced by pre-commit hooks that also keep
   `uv.lock` in sync with `pyproject.toml`.
+- Sphinx documentation under `docs/`, written in MyST markdown and built with
+  the `docs` dependency group.

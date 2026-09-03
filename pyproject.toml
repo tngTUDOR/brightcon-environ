@@ -20,6 +20,11 @@ dev = [
     "ruff>=0.14",
     "pre-commit>=4.0",
 ]
+docs = [
+    "sphinx>=8.1",
+    "myst-parser>=4.0",
+    "furo>=2024.8.6",
+]
 
 [build-system]
 requires = ["hatchling"]
