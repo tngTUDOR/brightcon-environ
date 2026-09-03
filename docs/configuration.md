@@ -25,7 +25,7 @@ unauthenticated builds.
 | `repo.url` | `""` | clone URL of the watched repository |
 | `repo.branch` | `"main"` | branch to watch; pushes to any other ref are ignored |
 | `repo.path` | `/opt/tljh/environ/repo` | where the clone lives |
-| `repo.ssh_key` | unset | private deploy key, for a private repository |
+| `repo.ssh_key` | unset | private deploy key for a private repository; store under `/etc/brightcon-environ/`, not under `/opt/tljh` |
 | `paths.env_root` | `/opt/tljh/user/envs` | parent directory of every environment |
 | `paths.kernel_prefix` | `/opt/tljh/user` | prefix passed to `ipykernel install` |
 | `paths.state_dir` | `/opt/tljh/environ/state` | holds `environments.json` |
@@ -45,10 +45,10 @@ unauthenticated builds.
 
 ```toml
 [repo]
-url = "git@github.com:CHANGE-ME/course-environments.git"
+url = "https://github.com/CHANGE-ME/course-environments.git"
 branch = "main"
 path = "/opt/tljh/environ/repo"
-# ssh_key = "/opt/tljh/environ/deploy_key"
+# ssh_key = "/etc/brightcon-environ/deploy_key"
 
 [paths]
 env_root = "/opt/tljh/user/envs"
@@ -84,11 +84,17 @@ tool paths changes between them:
 ```
 /opt/tljh/user/envs/<name>              the environment itself
 /opt/tljh/user/share/jupyter/kernels/   kernelspecs, shared by all hub users
-/opt/tljh/environ/repo                  the clone of the watched repository
+/opt/tljh/environ/repo/                 the clone of the watched repository
+/opt/tljh/environ/venv/                 dedicated venv for the service itself
+/opt/tljh/environ/cache/                tool caches (uv, conda)
 /opt/tljh/environ/state/environments.json
 /opt/tljh/environ/logs/<timestamp>-<job>.log
 /opt/tljh/config/environ.toml           configuration
+/etc/brightcon-environ.env              secrets (mode 0600)
 ```
+
+See {doc}`deployment` for a step-by-step install guide and {doc}`troubleshooting`
+for common problems.
 
 Environments are always created with an explicit prefix, never with
 `conda create -n`, so the result never depends on `envs_dirs` or `.condarc`.

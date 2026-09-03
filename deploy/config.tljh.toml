@@ -1,18 +1,19 @@
 # TLJH server configuration.
 #
-# Identical to deploy/config.local.toml except for [tools]: on a real TLJH box
-# every tool lives in the user environment at /opt/tljh/user.
-#
 # Install as /opt/tljh/config/environ.toml.
 #
 # uv is not part of a stock TLJH install; add it with
 #   sudo -E /opt/tljh/user/bin/conda install -c conda-forge uv
 
 [repo]
-url = "git@github.com:CHANGE-ME/course-environments.git"
+# Use HTTPS for public repos. For private repos, switch to a git@github.com:
+# URL and set ssh_key below.
+url = "https://github.com/CHANGE-ME/course-environments.git"
 branch = "main"
 path = "/opt/tljh/environ/repo"
-# ssh_key = "/opt/tljh/environ/deploy_key"
+# For private repos: generate a deploy key, add the public half to GitHub,
+# and store the private key outside /opt/tljh (which is world-readable).
+# ssh_key = "/etc/brightcon-environ/deploy_key"
 
 [paths]
 env_root = "/opt/tljh/user/envs"

@@ -10,6 +10,10 @@ Wants=network-online.target
 User=root
 UMask=0022
 Environment="ENVIRON_CONFIG=/opt/tljh/config/environ.toml"
+# Redirect tool caches under /opt/tljh so ProtectHome=read-only does not block them.
+Environment="UV_CACHE_DIR=/opt/tljh/environ/cache/uv"
+Environment="CONDA_PKGS_DIRS=/opt/tljh/environ/cache/conda/pkgs"
+Environment="XDG_CACHE_HOME=/opt/tljh/environ/cache"
 EnvironmentFile=/etc/brightcon-environ.env
 ExecStart=/opt/tljh/environ/venv/bin/environ serve
 Restart=always

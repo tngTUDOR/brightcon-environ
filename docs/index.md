@@ -34,7 +34,9 @@ a new branch -- the service falls back to scanning every definition file.
 
 environments
 configuration
+deployment
 operating
+troubleshooting
 development
 changelog
 ```

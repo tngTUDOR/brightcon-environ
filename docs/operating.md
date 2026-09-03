@@ -1,5 +1,8 @@
 # Operating the service
 
+For a full TLJH deployment guide see {doc}`deployment`. For common problems
+see {doc}`troubleshooting`.
+
 ## Command line
 
 Everything the webhook can trigger is also reachable from the `environ`
@@ -48,6 +51,8 @@ uv run environ serve            # http://127.0.0.1:8787
 everything) and `force`.
 
 ## As a systemd unit
+
+See {doc}`deployment` for the complete install sequence. In short:
 
 ```bash
 sudo cp deploy/brightcon-environ.service /etc/systemd/system/
