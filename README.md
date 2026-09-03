@@ -122,8 +122,8 @@ The only difference between the two deployments is `[tools]`:
 
 | | local Fedora box | TLJH server |
 | --- | --- | --- |
-| `conda` | `/home/tomas/miniforge3/bin/mamba` | `/opt/tljh/user/bin/mamba` |
-| `uv` | `/home/tomas/.local/bin/uv` | `/opt/tljh/user/bin/uv` |
+| `conda` | `/home/localuser/miniforge3/bin/mamba` | `/opt/tljh/user/bin/mamba` |
+| `uv` | `/home/localuser/.local/bin/uv` | `/opt/tljh/user/bin/uv` |
 
 uv is not part of a stock TLJH install; add it with
 `sudo -E /opt/tljh/user/bin/conda install -c conda-forge uv`.
