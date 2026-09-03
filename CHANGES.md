@@ -61,3 +61,10 @@ Everything below is the initial, not yet released feature set of the service.
   `uv.lock` in sync with `pyproject.toml`.
 - Sphinx documentation under `docs/`, written in MyST markdown and built with
   the `docs` dependency group.
+- A GitHub Actions workflow that runs ruff and the test suite on every push and
+  pull request.
+
+### Changed
+
+- The test suite depends on `httpx2` instead of `httpx`, matching what Starlette's
+  `TestClient` now prefers.

@@ -16,7 +16,7 @@ environ = "brightcon_environ.cli:main"
 [dependency-groups]
 dev = [
     "pytest>=8.0",
-    "httpx>=0.27",
+    "httpx2>=2.0",
     "ruff>=0.14",
     "pre-commit>=4.0",
 ]

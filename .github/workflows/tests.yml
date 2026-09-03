@@ -1,0 +1,53 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          # Parallel jobs race when they share a cache key; suffix by job name.
+          cache-suffix: ${{ github.job }}
+
+      - name: Install the project
+        run: uv sync --locked
+
+      - name: ruff check
+        run: uv run --no-sync ruff check --output-format=github .
+
+      - name: ruff format
+        run: uv run --no-sync ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          cache-suffix: ${{ github.job }}
+
+      - name: Install the project
+        run: uv sync --locked
+
+      - name: Unit tests
+        run: uv run --no-sync pytest -m "not slow"
+
+      # Builds a real venv with uv and registers a kernelspec, so it needs the
+      # network and a downloadable python.
+      - name: End-to-end build test
+        run: uv run --no-sync pytest -m slow
