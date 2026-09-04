@@ -14,6 +14,7 @@ from pathlib import Path
 DEFAULT_CONFIG_PATH = Path("/opt/tljh/config/environ.toml")
 SECRET_ENV_VAR = "GITHUB_WEBHOOK_SECRET"
 ADMIN_TOKEN_ENV_VAR = "ENVIRON_ADMIN_TOKEN"
+CHECKS_TOKEN_ENV_VAR = "GITHUB_CHECKS_TOKEN"
 CONFIG_PATH_ENV_VAR = "ENVIRON_CONFIG"
 
 
@@ -92,6 +93,11 @@ class Config:
     def admin_token(self) -> str | None:
         """Bearer token guarding the manual rebuild endpoint."""
         return os.environ.get(ADMIN_TOKEN_ENV_VAR) or None
+
+    @property
+    def checks_token(self) -> str | None:
+        """Fine-grained PAT (Checks: write) for reporting Check Runs. Optional."""
+        return os.environ.get(CHECKS_TOKEN_ENV_VAR) or None
 
 
 def _path(value: object, name: str) -> Path:

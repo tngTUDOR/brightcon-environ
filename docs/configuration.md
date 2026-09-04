@@ -12,18 +12,23 @@ Secrets are never stored in the file; they come from the environment.
 | --- | --- |
 | `GITHUB_WEBHOOK_SECRET` | shared secret for the `X-Hub-Signature-256` check |
 | `ENVIRON_ADMIN_TOKEN` | bearer token for `POST /rebuild` |
+| `GITHUB_CHECKS_TOKEN` | optional fine-grained PAT with **Checks: Read and write** on the definitions repo; used to post Check Runs |
 | `ENVIRON_CONFIG` | path to the configuration file |
 
 `GITHUB_WEBHOOK_SECRET` is mandatory. Without it the webhook endpoint fails
 closed with `503` and refuses every delivery, rather than accepting
 unauthenticated builds.
 
+`GITHUB_CHECKS_TOKEN` is optional. Without it, jobs still run; contributors
+just will not see an **environ** check on the PR. The token is never stored in
+the TOML file.
+
 ## Settings
 
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `repo.url` | `""` | clone URL of the watched repository |
-| `repo.branch` | `"main"` | branch to watch; pushes to any other ref are ignored |
+| `repo.branch` | `"main"` | watched branch; `push` to other refs and PRs targeting other bases are ignored |
 | `repo.path` | `/opt/tljh/environ/repo` | where the clone lives |
 | `repo.ssh_key` | unset | private deploy key for a private repository; store under `/etc/brightcon-environ/`, not under `/opt/tljh` |
 | `paths.env_root` | `/opt/tljh/user/envs` | parent directory of every environment |

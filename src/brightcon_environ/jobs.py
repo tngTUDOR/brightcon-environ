@@ -2,17 +2,26 @@
 
 Rebuilds are queued and executed one at a time by a single background thread,
 so two pushes landing together can never fight over the same environment root.
+
+Jobs run in one of two modes:
+
+* ``apply`` -- tear down and recreate live environments under ``paths.env_root``
+  and register shared kernels (push to main, manual rebuild).
+* ``validate`` -- build into a disposable staging tree for a pull request head;
+  never touch the live env root or shared kernelspecs.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import os
+import shutil
 import threading
 import uuid
 from collections import deque
 from collections.abc import Callable, Iterable
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -21,12 +30,15 @@ from queue import Queue
 from .builders import BuildError, BuildResult, build, destroy, env_path
 from .config import Config
 from .discovery import DiscoveryProblem, EnvSpec, discover_all, resolve_changes
-from .git_repo import GitError, GitRepo
+from .git_repo import NULL_SHA, GitError, GitRepo
+from .github_checks import ChecksClient, checks_client_from_config
 from .kernels import kernel_dir
 from .runner import CommandError
 
 MAX_JOB_HISTORY = 100
 LOG_TAIL_LINES = 400
+
+logger = logging.getLogger("brightcon_environ.jobs")
 
 
 def _now() -> str:
@@ -120,8 +132,13 @@ class Job:
 
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
     trigger: str = "manual"
+    mode: str = "apply"
+    """``apply`` mutates live kernels; ``validate`` builds in staging only."""
     before: str | None = None
     after: str | None = None
+    head_sha: str | None = None
+    """Commit SHA used for GitHub Check Runs (push ``after`` or PR head)."""
+    pr_number: int | None = None
     names: list[str] | None = None
     force: bool = False
     status: JobStatus = JobStatus.QUEUED
@@ -134,11 +151,13 @@ class Job:
     skipped: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     log_path: str | None = None
+    check_run_id: int | None = None
 
     def summary(self) -> dict:
         return {
             "id": self.id,
             "trigger": self.trigger,
+            "mode": self.mode,
             "status": str(self.status),
             "created_at": self.created_at,
             "started_at": self.started_at,
@@ -149,6 +168,8 @@ class Job:
             "skipped": self.skipped,
             "errors": self.errors,
             "log_path": self.log_path,
+            "check_run_id": self.check_run_id,
+            "pr_number": self.pr_number,
         }
 
 
@@ -213,25 +234,56 @@ def _report_problems(
         job.errors.append(message)
 
 
+def _staging_config(config: Config, job_id: str) -> tuple[Config, Path]:
+    """Build config rooted under ``state_dir/validate/<job_id>``."""
+    staging_root = config.paths.state_dir / "validate" / job_id
+    staging_paths = replace(
+        config.paths,
+        env_root=staging_root / "envs",
+        kernel_prefix=staging_root / "prefix",
+        state_dir=staging_root / "state",
+    )
+    return replace(config, paths=staging_paths), staging_root
+
+
 def run_job(config: Config, job: Job, log: JobLog) -> Job:
     """Execute one rebuild request end to end."""
     job.status = JobStatus.RUNNING
     job.started_at = _now()
-    state = StateStore(config.paths.state_file)
 
+    if job.mode == "validate":
+        return _run_validate(config, job, log)
+    return _run_apply(config, job, log)
+
+
+def _prepare_repo(config: Config, job: Job, log: JobLog) -> GitRepo | None:
     try:
         repo = GitRepo(config.repo, config.tools, log=log.write)
         repo.ensure_clone()
         repo.fetch()
-        job.commit = repo.checkout(job.after)
+        if job.mode == "validate" and job.pr_number is not None:
+            fetched = repo.fetch_pull(job.pr_number)
+            target = job.after or fetched
+            job.commit = repo.checkout(target)
+        else:
+            job.commit = repo.checkout(job.after)
         log.write(f"repository at {job.commit}")
+        return repo
     except (GitError, CommandError) as exc:
         log.write(f"! {exc}")
         job.errors.append(str(exc))
         job.status = JobStatus.FAILED
         job.finished_at = _now()
-        return job
+        return None
 
+
+def _select_specs(
+    config: Config,
+    job: Job,
+    repo: GitRepo,
+    state: StateStore,
+    log: JobLog,
+) -> tuple[list[EnvSpec], list[str]]:
     all_specs, problems = discover_all(repo.path, config.defaults)
     _report_problems(problems, job, log)
 
@@ -243,26 +295,37 @@ def run_job(config: Config, job: Job, log: JobLog) -> Job:
             message = f"no definition file found for environment {name!r}"
             log.write(f"! {message}")
             job.errors.append(message)
-        removals: list[str] = []
-    elif job.before is None:
-        specs, removals = all_specs, []
-        log.write(f"full scan: {len(specs)} definition file(s)")
-    else:
-        changed = repo.changed_paths(job.before, job.commit or "HEAD")
-        if changed is None:
-            log.write(
-                f"cannot diff {job.before}..{job.commit}; falling back to a full scan"
-            )
-            specs, removals = all_specs, []
-        else:
-            log.write(f"{len(changed)} path(s) changed in this push")
-            specs, removals, change_problems = resolve_changes(
-                repo.path,
-                changed,
-                config.defaults,
-                known=state.definition_to_name(),
-            )
-            _report_problems(change_problems, job, log)
+        return specs, []
+
+    if job.before is None or job.before == NULL_SHA:
+        log.write(f"full scan: {len(all_specs)} definition file(s)")
+        return all_specs, []
+
+    changed = repo.changed_paths(job.before, job.commit or "HEAD")
+    if changed is None:
+        log.write(
+            f"cannot diff {job.before}..{job.commit}; falling back to a full scan"
+        )
+        return all_specs, []
+
+    log.write(f"{len(changed)} path(s) changed in this push")
+    specs, removals, change_problems = resolve_changes(
+        repo.path,
+        changed,
+        config.defaults,
+        known=state.definition_to_name(),
+    )
+    _report_problems(change_problems, job, log)
+    return specs, removals
+
+
+def _run_apply(config: Config, job: Job, log: JobLog) -> Job:
+    state = StateStore(config.paths.state_file)
+    repo = _prepare_repo(config, job, log)
+    if repo is None:
+        return job
+
+    specs, removals = _select_specs(config, job, repo, state, log)
 
     for name in removals:
         try:
@@ -322,14 +385,130 @@ def run_job(config: Config, job: Job, log: JobLog) -> Job:
     return job
 
 
+def _run_validate(config: Config, job: Job, log: JobLog) -> Job:
+    """Build changed definitions under a staging prefix; never touch live envs."""
+    live_state = StateStore(config.paths.state_file)
+    staging_config, staging_root = _staging_config(config, job.id)
+    staging_root.mkdir(parents=True, exist_ok=True)
+    log.write(f"validate mode: staging under {staging_root}")
+
+    try:
+        repo = _prepare_repo(config, job, log)
+        if repo is None:
+            return job
+
+        # Always rebuild candidates for a PR; fingerprint skip uses live state.
+        job.force = True
+        specs, removals = _select_specs(config, job, repo, live_state, log)
+
+        for name in removals:
+            log.write(f"~ {name} would be removed on merge (not applied in validate)")
+            job.removed.append(name)
+
+        for spec in specs:
+            try:
+                result = build(staging_config, spec, repo.path, log=log.write)
+            except (BuildError, OSError) as exc:
+                log.write(f"! {exc}")
+                job.errors.append(str(exc))
+                continue
+            log.write(
+                f"+ {result.name} validated in {result.duration_seconds}s "
+                f"-> {result.env_path}"
+            )
+            job.built.append(result.name)
+
+        job.status = JobStatus.FAILED if job.errors else JobStatus.SUCCEEDED
+        job.finished_at = _now()
+        log.write(
+            f"done (validate): {len(job.built)} built, "
+            f"{len(job.removed)} would-remove, {len(job.errors)} error(s)"
+        )
+        return job
+    finally:
+        if staging_root.exists():
+            log.write(f"removing staging tree {staging_root}")
+            shutil.rmtree(staging_root, ignore_errors=True)
+
+
 # -------------------------------------------------------------------------- queue
+
+
+def _report_check_start(client: ChecksClient, job: Job) -> None:
+    head_sha = job.head_sha
+    if not head_sha or head_sha == NULL_SHA:
+        return
+    title = (
+        "Validating environments…"
+        if job.mode == "validate"
+        else "Rebuilding environments…"
+    )
+    check_id = client.create(
+        head_sha=head_sha,
+        job_id=job.id,
+        title=title,
+        summary=f"Job `{job.id}` ({job.mode})",
+    )
+    if check_id is not None:
+        job.check_run_id = check_id
+
+
+def _report_check_finish(client: ChecksClient, job: Job, log: JobLog) -> None:
+    if job.check_run_id is None:
+        return
+    failed = bool(job.errors) or job.status is JobStatus.FAILED
+    conclusion = "failure" if failed else "success"
+    title = (
+        f"{len(job.errors)} error(s)"
+        if failed
+        else (
+            f"{len(job.built)} built, {len(job.removed)} removed, "
+            f"{len(job.skipped)} skipped"
+        )
+    )
+    summary_parts = [
+        f"**Job** `{job.id}` ({job.mode})",
+        f"**Status** {job.status}",
+    ]
+    if job.commit:
+        summary_parts.append(f"**Commit** `{job.commit}`")
+    if job.built:
+        summary_parts.append("**Built:** " + ", ".join(f"`{n}`" for n in job.built))
+    if job.removed:
+        label = "Would remove" if job.mode == "validate" else "Removed"
+        names = ", ".join(f"`{n}`" for n in job.removed)
+        summary_parts.append(f"**{label}:** {names}")
+    if job.skipped:
+        summary_parts.append("**Skipped:** " + ", ".join(f"`{n}`" for n in job.skipped))
+    if job.errors:
+        summary_parts.append("**Errors:**")
+        summary_parts.extend(f"- {error}" for error in job.errors)
+    text = "\n".join(log.tail()) or "(no log output)"
+    try:
+        client.complete(
+            job.check_run_id,
+            conclusion=conclusion,
+            title=title,
+            summary="\n\n".join(summary_parts),
+            text=text,
+        )
+    except Exception:  # noqa: BLE001 - never fail the job on reporting
+        logger.exception("failed to complete GitHub Check Run %s", job.check_run_id)
 
 
 class JobQueue:
     """Serialises rebuilds onto a single worker thread."""
 
-    def __init__(self, config: Config) -> None:
+    def __init__(
+        self,
+        config: Config,
+        *,
+        checks: ChecksClient | None = None,
+    ) -> None:
         self.config = config
+        if checks is None:
+            checks = checks_client_from_config(config)
+        self.checks = checks
         self._queue: Queue[Job | None] = Queue()
         self._jobs: dict[str, Job] = {}
         self._logs: dict[str, JobLog] = {}
@@ -360,6 +539,12 @@ class JobQueue:
             / f"{datetime.now(UTC):%Y%m%dT%H%M%S}-{job.id}.log"
         )
         job.log_path = str(log_path)
+        if job.head_sha is None and job.after and job.after != NULL_SHA:
+            job.head_sha = job.after
+        try:
+            _report_check_start(self.checks, job)
+        except Exception:  # noqa: BLE001
+            logger.exception("failed to create GitHub Check Run for job %s", job.id)
         with self._lock:
             self._jobs[job.id] = job
             self._order.append(job.id)
@@ -407,5 +592,6 @@ class JobQueue:
                 job.errors.append(f"unexpected failure: {exc!r}")
                 log.write(f"! unexpected failure: {exc!r}")
             finally:
+                _report_check_finish(self.checks, job, log)
                 log.close()
                 self._queue.task_done()

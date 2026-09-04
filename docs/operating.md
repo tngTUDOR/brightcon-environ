@@ -58,7 +58,7 @@ See {doc}`deployment` for the complete install sequence. In short:
 sudo cp deploy/brightcon-environ.service /etc/systemd/system/
 sudo cp deploy/brightcon-environ.env.example /etc/brightcon-environ.env
 sudo chmod 600 /etc/brightcon-environ.env
-sudo $EDITOR /etc/brightcon-environ.env         # set both secrets
+sudo $EDITOR /etc/brightcon-environ.env         # set secrets
 sudo systemctl enable --now brightcon-environ
 journalctl -u brightcon-environ -f
 ```
@@ -93,9 +93,9 @@ cloudflared tunnel --url http://127.0.0.1:8787
 ```
 
 In the repository settings, add a webhook with the tunnel URL, content type
-`application/json`, the same secret as `GITHUB_WEBHOOK_SECRET`, and the *Just
-the push event* trigger. Merged pull requests arrive as pushes to the watched
-branch, so no separate `pull_request` subscription is needed.
+`application/json`, the same secret as `GITHUB_WEBHOOK_SECRET`, and both the
+**Pushes** and **Pull requests** events. PRs targeting the watched branch are
+validated in staging; merges apply via the push to that branch.
 
 For a private repository, generate a deploy key, add the public half to the
 repository with read access, and point `repo.ssh_key` at the private half.

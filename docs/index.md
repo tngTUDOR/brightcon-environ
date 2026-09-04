@@ -11,7 +11,7 @@ requirement lists, and uv project metadata.
 ```{tip}
 **Conference repo contributor?** You probably want
 [For contributors](for-contributors.md) — how to add `environment-*.yml` or
-`requirements-*.txt` so your kernel shows up in JupyterHub.
+`requirements-*.txt`, open a PR, and read the **environ** Check for Linux logs.
 
 **Server admin or maintainer?** Continue below, then see [Deployment](deployment.md)
 and [Configuration](configuration.md).

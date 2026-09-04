@@ -39,7 +39,8 @@ and Sphinx with `fail_on_warning`. Import the GitHub repository on Read the Docs
 | --- | --- |
 | `config.py` | TOML configuration; secrets come from the environment |
 | `security.py` | HMAC signature and bearer token checks |
-| `git_repo.py` | clone, fetch, hard reset, diff, blob hashes |
+| `git_repo.py` | clone, fetch, hard reset, diff, blob hashes, PR head fetch |
+| `github_checks.py` | GitHub Check Runs for contributor-visible job logs |
 | `discovery.py` | filenames and headers to `EnvSpec` |
 | `builders.py` | create and destroy environments, with path confinement |
 | `kernels.py` | kernelspec install and removal |

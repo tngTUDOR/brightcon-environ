@@ -13,11 +13,15 @@ from . import __version__
 from .builders import list_environments
 from .config import Config, load_config
 from .discovery import NAME_RE
+from .git_repo import NULL_SHA
+from .github_checks import ChecksClient
 from .jobs import Job, JobQueue, StateStore
 from .kernels import list_kernels
 from .security import MAX_BODY_BYTES, SIGNATURE_HEADER, verify_signature, verify_token
 
 logger = logging.getLogger("brightcon_environ")
+
+_PR_ACTIONS = frozenset({"opened", "synchronize", "reopened"})
 
 
 class RebuildRequest(BaseModel):
@@ -29,9 +33,14 @@ class RebuildRequest(BaseModel):
     )
 
 
-def create_app(config: Config | None = None, queue: JobQueue | None = None) -> FastAPI:
+def create_app(
+    config: Config | None = None,
+    queue: JobQueue | None = None,
+    *,
+    checks: ChecksClient | None = None,
+) -> FastAPI:
     config = config or load_config()
-    queue = queue or JobQueue(config)
+    queue = queue or JobQueue(config, checks=checks)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -93,10 +102,6 @@ def create_app(config: Config | None = None, queue: JobQueue | None = None) -> F
             response.status_code = 200
             return {"pong": True}
 
-        if x_github_event != "push":
-            response.status_code = 200
-            return {"ignored": f"event {x_github_event!r} is not handled"}
-
         try:
             payload = json.loads(body)
         except json.JSONDecodeError as exc:
@@ -104,30 +109,15 @@ def create_app(config: Config | None = None, queue: JobQueue | None = None) -> F
         if not isinstance(payload, dict):
             raise HTTPException(status_code=400, detail="payload must be a JSON object")
 
-        ref = payload.get("ref")
-        if ref != config.repo.ref:
-            response.status_code = 200
-            return {"ignored": f"ref {ref!r} is not {config.repo.ref!r}"}
-
-        if payload.get("deleted"):
-            response.status_code = 200
-            return {"ignored": "branch was deleted"}
-
-        job = queue.submit(
-            Job(
-                trigger="webhook",
-                before=payload.get("before"),
-                after=payload.get("after"),
+        if x_github_event == "push":
+            return _handle_push(payload, queue, config, response, x_github_delivery)
+        if x_github_event == "pull_request":
+            return _handle_pull_request(
+                payload, queue, config, response, x_github_delivery
             )
-        )
-        logger.info(
-            "queued job %s for delivery %s (%s..%s)",
-            job.id,
-            x_github_delivery or "?",
-            job.before,
-            job.after,
-        )
-        return {"job": job.id, "status": str(job.status)}
+
+        response.status_code = 200
+        return {"ignored": f"event {x_github_event!r} is not handled"}
 
     @app.post("/rebuild", status_code=202)
     def rebuild(
@@ -149,7 +139,12 @@ def create_app(config: Config | None = None, queue: JobQueue | None = None) -> F
                 )
 
         job = queue.submit(
-            Job(trigger="manual", names=payload.names, force=payload.force)
+            Job(
+                trigger="manual",
+                mode="apply",
+                names=payload.names,
+                force=payload.force,
+            )
         )
         return {"job": job.id, "status": str(job.status)}
 
@@ -190,3 +185,104 @@ def create_app(config: Config | None = None, queue: JobQueue | None = None) -> F
         }
 
     return app
+
+
+def _handle_push(
+    payload: dict,
+    queue: JobQueue,
+    config: Config,
+    response: Response,
+    delivery: str,
+) -> dict:
+    ref = payload.get("ref")
+    if ref != config.repo.ref:
+        response.status_code = 200
+        return {"ignored": f"ref {ref!r} is not {config.repo.ref!r}"}
+
+    if payload.get("deleted"):
+        response.status_code = 200
+        return {"ignored": "branch was deleted"}
+
+    after = payload.get("after")
+    if not after or after == NULL_SHA:
+        response.status_code = 200
+        return {"ignored": "null after SHA"}
+
+    job = queue.submit(
+        Job(
+            trigger="webhook",
+            mode="apply",
+            before=payload.get("before"),
+            after=after,
+            head_sha=after,
+        )
+    )
+    logger.info(
+        "queued apply job %s for delivery %s (%s..%s)",
+        job.id,
+        delivery or "?",
+        job.before,
+        job.after,
+    )
+    return {"job": job.id, "status": str(job.status), "mode": job.mode}
+
+
+def _handle_pull_request(
+    payload: dict,
+    queue: JobQueue,
+    config: Config,
+    response: Response,
+    delivery: str,
+) -> dict:
+    action = payload.get("action")
+    if action not in _PR_ACTIONS:
+        response.status_code = 200
+        return {"ignored": f"pull_request action {action!r} is not handled"}
+
+    pr = payload.get("pull_request")
+    if not isinstance(pr, dict):
+        raise HTTPException(status_code=400, detail="missing pull_request object")
+
+    base = pr.get("base") if isinstance(pr.get("base"), dict) else {}
+    head = pr.get("head") if isinstance(pr.get("head"), dict) else {}
+    base_ref = base.get("ref")
+    if base_ref != config.repo.branch:
+        response.status_code = 200
+        return {
+            "ignored": (f"pull_request base {base_ref!r} is not {config.repo.branch!r}")
+        }
+
+    head_sha = head.get("sha")
+    if not isinstance(head_sha, str) or not head_sha or head_sha == NULL_SHA:
+        raise HTTPException(status_code=400, detail="missing pull_request.head.sha")
+
+    number = pr.get("number")
+    if not isinstance(number, int):
+        raise HTTPException(status_code=400, detail="missing pull_request.number")
+
+    base_sha = base.get("sha") if isinstance(base.get("sha"), str) else None
+
+    job = queue.submit(
+        Job(
+            trigger="webhook",
+            mode="validate",
+            before=base_sha,
+            after=head_sha,
+            head_sha=head_sha,
+            pr_number=number,
+            force=True,
+        )
+    )
+    logger.info(
+        "queued validate job %s for delivery %s (PR #%s %s)",
+        job.id,
+        delivery or "?",
+        number,
+        head_sha,
+    )
+    return {
+        "job": job.id,
+        "status": str(job.status),
+        "mode": job.mode,
+        "pr": number,
+    }

@@ -111,6 +111,16 @@ class GitRepo:
         except CommandError as exc:
             raise GitError(f"fetching {self.config.branch} failed: {exc}") from exc
 
+    def fetch_pull(self, number: int) -> str:
+        """Fetch ``pull/<number>/head`` and return the resulting commit SHA."""
+        refspec = f"pull/{number}/head"
+        try:
+            self._git("fetch", "--prune", "origin", refspec)
+        except CommandError as exc:
+            raise GitError(f"fetching {refspec} failed: {exc}") from exc
+        # ``git fetch origin pull/N/head`` stores the tip in FETCH_HEAD.
+        return self._git("rev-parse", "FETCH_HEAD").output.strip()
+
     def has_commit(self, sha: str) -> bool:
         if not sha or sha == NULL_SHA:
             return False

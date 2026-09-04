@@ -3,9 +3,10 @@
 You are editing the **definitions repository** — the repo whose URL the conference
 server watches. You are **not** editing brightcon-environ itself.
 
-When your change lands on the watched branch (usually `main`), the server rebuilds
-every environment whose file changed and registers a new kernel in JupyterHub.
-No admin hand-waving required. ✨
+When you open a pull request against the watched branch (usually `main`), the
+server **validates** the environment on Linux and posts an **environ** Check Run
+on your commit — with the log tail if it fails. Live JupyterHub kernels are
+**not** updated until the PR is merged. No admin hand-waving required. ✨
 
 ---
 
@@ -150,19 +151,26 @@ For `pyproject-<name>.toml`, use `[tool.environ]` instead — see
 
 ---
 
-## What happens when you merge 🚀
+## What happens when you open a PR 🚀
 
 ```text
-merge to main  →  server sees your changed file  →  old env deleted  →  fresh build  →  kernel appears in JupyterHub
+open / update PR  →  Linux validate in staging  →  Check "environ" on your commit
+merge to main     →  live env rebuilt            →  kernel appears in JupyterHub
 ```
+
+Watch the **environ** check on the PR. Click it for the log tail if it is red.
+A green check means “this definition builds on the conference Linux server”;
+it does **not** yet change the hub.
+
+After merge:
 
 - **Edit** a definition → that kernel is rebuilt from scratch.
 - **Delete** a definition → that kernel is removed from the hub.
-- **Rename** a file → treated as delete old + create new (two kernels briefly, then one).
-- Unchanged files are skipped — the server is not rebuilding the world on every push.
+- **Rename** a file → treated as delete old + create new.
+- Unchanged files are skipped on apply.
 
 Participants may need to **restart their single-user server** once from the Hub
-control panel before a new kernel shows up. The conference admins know this drill.
+control panel before a new kernel shows up.
 
 ---
 
@@ -178,6 +186,7 @@ Before you open the PR, scan this list:
 - [ ] Packages you need for the notebook actually listed
 - [ ] Conda YAML is hand-written or from `--from-history` (no `osx-*` / `win-*` build strings)
 - [ ] *(optional)* `# display-name:` set so the launcher looks friendly
+- [ ] Open a PR and wait for the **environ** check (not a direct push to `main`)
 
 ---
 
@@ -215,8 +224,9 @@ Details: [Lock files](environments.md#lock-files).
 | Duplicate-name warning | Two files map to the same `<name>` — rename or remove one |
 | Deleted kernel still listed | Old env cached; admins can force a rebuild |
 
-You cannot SSH into the server to debug. If a build fails, ping the organisers with
-your PR link — they can read the job log.
+Open the **environ** check on the PR for the Linux log. If Checks are not
+configured on the server, ping the organisers with your PR link — they can
+read the job log.
 
 ---
 

@@ -24,9 +24,45 @@ class IdleQueue(JobQueue):
         return
 
 
+class RecordingChecks:
+    def __init__(self) -> None:
+        self.created: list[dict] = []
+        self.completed: list[dict] = []
+        self._next_id = 100
+
+    def create(self, *, head_sha, job_id, title, summary=""):
+        self._next_id += 1
+        self.created.append(
+            {
+                "head_sha": head_sha,
+                "job_id": job_id,
+                "title": title,
+                "summary": summary,
+                "id": self._next_id,
+            }
+        )
+        return self._next_id
+
+    def complete(self, check_run_id, *, conclusion, title, summary, text):
+        self.completed.append(
+            {
+                "id": check_run_id,
+                "conclusion": conclusion,
+                "title": title,
+                "summary": summary,
+                "text": text,
+            }
+        )
+
+
 @pytest.fixture
-def queue(config: Config) -> IdleQueue:
-    return IdleQueue(config)
+def checks() -> RecordingChecks:
+    return RecordingChecks()
+
+
+@pytest.fixture
+def queue(config: Config, checks: RecordingChecks) -> IdleQueue:
+    return IdleQueue(config, checks=checks)
 
 
 @pytest.fixture
@@ -44,6 +80,25 @@ def push(ref: str = "refs/heads/main", **overrides) -> bytes:
         "after": "b" * 40,
         "deleted": False,
         **overrides,
+    }
+    return json.dumps(payload).encode("utf-8")
+
+
+def pull_request(
+    *,
+    action: str = "synchronize",
+    base_ref: str = "main",
+    head_sha: str = "c" * 40,
+    number: int = 12,
+    base_sha: str = "a" * 40,
+) -> bytes:
+    payload = {
+        "action": action,
+        "pull_request": {
+            "number": number,
+            "base": {"ref": base_ref, "sha": base_sha},
+            "head": {"sha": head_sha, "ref": "feature"},
+        },
     }
     return json.dumps(payload).encode("utf-8")
 
@@ -66,14 +121,68 @@ def test_healthz(client: TestClient):
     assert response.json()["status"] == "ok"
 
 
-def test_a_signed_push_to_main_is_queued(client: TestClient, queue: IdleQueue):
+def test_a_signed_push_to_main_is_queued(
+    client: TestClient, queue: IdleQueue, checks: RecordingChecks
+):
     response = deliver(client, push())
     assert response.status_code == 202
 
     job_id = response.json()["job"]
     job = queue.get(job_id)
     assert job is not None
-    assert (job.trigger, job.before, job.after) == ("webhook", "a" * 40, "b" * 40)
+    assert (job.trigger, job.mode, job.before, job.after) == (
+        "webhook",
+        "apply",
+        "a" * 40,
+        "b" * 40,
+    )
+    assert job.head_sha == "b" * 40
+    assert job.check_run_id == checks.created[0]["id"]
+    assert checks.created[0]["head_sha"] == "b" * 40
+
+
+def test_a_pull_request_into_main_queues_validate(
+    client: TestClient, queue: IdleQueue, checks: RecordingChecks
+):
+    response = deliver(client, pull_request(), event="pull_request")
+    assert response.status_code == 202
+    body = response.json()
+    assert body["mode"] == "validate"
+    assert body["pr"] == 12
+
+    job = queue.get(body["job"])
+    assert job is not None
+    assert job.mode == "validate"
+    assert job.pr_number == 12
+    assert job.head_sha == "c" * 40
+    assert job.after == "c" * 40
+    assert job.before == "a" * 40
+    assert checks.created[0]["title"].startswith("Validating")
+
+
+def test_pull_request_with_wrong_base_is_ignored(client: TestClient, queue: IdleQueue):
+    response = deliver(client, pull_request(base_ref="develop"), event="pull_request")
+    assert response.status_code == 200
+    assert "base" in response.json()["ignored"]
+    assert queue.recent() == []
+
+
+def test_pull_request_closed_is_ignored(client: TestClient, queue: IdleQueue):
+    response = deliver(client, pull_request(action="closed"), event="pull_request")
+    assert response.status_code == 200
+    assert queue.recent() == []
+
+
+def test_push_without_checks_token_still_queues(config: Config, monkeypatch):
+    monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", SECRET)
+    monkeypatch.delenv("GITHUB_CHECKS_TOKEN", raising=False)
+    queue = IdleQueue(config)  # real NullChecksClient from config
+    with TestClient(create_app(config, queue)) as client:
+        response = deliver(client, push())
+    assert response.status_code == 202
+    job = queue.get(response.json()["job"])
+    assert job is not None
+    assert job.check_run_id is None
 
 
 def test_an_unsigned_push_is_rejected(client: TestClient, queue: IdleQueue):
@@ -132,9 +241,9 @@ def test_pushes_we_do_not_care_about_are_ignored(
 
 
 def test_other_events_are_ignored(client: TestClient, queue: IdleQueue):
-    response = deliver(client, push(), event="pull_request")
+    response = deliver(client, push(), event="issues")
     assert response.status_code == 200
-    assert "pull_request" in response.json()["ignored"]
+    assert "issues" in response.json()["ignored"]
     assert queue.recent() == []
 
 
@@ -162,7 +271,13 @@ def test_rebuild_queues_a_manual_job(client: TestClient, queue: IdleQueue):
     assert response.status_code == 202
     job = queue.get(response.json()["job"])
     assert job is not None
-    assert (job.trigger, job.names, job.force) == ("manual", ["demo"], True)
+    assert (job.trigger, job.mode, job.names, job.force) == (
+        "manual",
+        "apply",
+        ["demo"],
+        True,
+    )
+    assert job.check_run_id is None  # no head_sha on manual rebuilds
 
 
 def test_rebuild_rejects_an_unsafe_name(client: TestClient):
@@ -183,6 +298,7 @@ def test_jobs_endpoints(client: TestClient):
     detail = client.get(f"/jobs/{job_id}")
     assert detail.status_code == 200
     assert detail.json()["status"] == "queued"
+    assert detail.json()["mode"] == "apply"
 
     assert client.get("/jobs/nope").status_code == 404
 

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- GitHub Check Runs named `environ` so definitions-repo contributors can read
+  Linux build logs on a pull request. Optional `GITHUB_CHECKS_TOKEN` (fine-grained
+  PAT with Checks: write); if unset, jobs still run and nothing is posted.
+- `pull_request` webhooks (`opened` / `synchronize` / `reopened` targeting the
+  watched branch) **validate** definitions in a disposable staging tree without
+  touching live environments or shared kernels. Push to the watched branch still
+  **applies** to the hub.
+
 ## [1.0.0]
 
 Initial release of the service.
