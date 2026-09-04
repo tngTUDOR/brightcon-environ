@@ -230,24 +230,97 @@ sudo systemctl restart brightcon-environ
 
 ## Updating the service
 
-After pulling new code into the source clone:
+The systemd unit runs
+`ExecStart=/opt/tljh/environ/venv/bin/environ serve`. New releases must be
+**reinstalled into that venv**; pulling git alone does not change what the
+service executes.
+
+Assume the source clone lives at `/usr/local/share/brightcon-environ` (adjust
+if you chose another path in Step 1).
+
+### 1. Update the source clone
 
 ```bash
 cd /usr/local/share/brightcon-environ
+sudo git fetch origin
+sudo git checkout main          # or a release tag, e.g. v2.0.0
 sudo git pull
+```
+
+### 2. Reinstall into the service venv
+
+```bash
 sudo /opt/tljh/user/bin/uv pip install \
     --python /opt/tljh/environ/venv/bin/python \
     /usr/local/share/brightcon-environ
-sudo systemctl restart brightcon-environ
 ```
 
-If the systemd unit file changed, also re-copy it:
+This refreshes the `environ` console script at
+`/opt/tljh/environ/venv/bin/environ` and installs any new dependencies
+(for example `PyJWT` for Check Runs).
+
+Verify:
+
+```bash
+/opt/tljh/environ/venv/bin/environ --version
+```
+
+### 3. Apply config / secret changes from the release notes
+
+Read `CHANGES.md` for the version you installed. Typical follow-ups:
+
+- New keys in `/opt/tljh/config/environ.toml` — merge from
+  `deploy/config.tljh.toml` and edit.
+- New secrets in `/etc/brightcon-environ.env` — compare with
+  `deploy/brightcon-environ.env.example` (mode `0600`). For Check Runs see
+  {doc}`github-app`.
+- New directories under `/opt/tljh/environ/` — create them if the unit’s
+  `ReadWritePaths` or docs require it.
+
+### 4. Refresh the systemd unit if it changed
+
+```bash
+diff -u /etc/systemd/system/brightcon-environ.service \
+        /usr/local/share/brightcon-environ/deploy/brightcon-environ.service
+```
+
+If they differ:
 
 ```bash
 sudo cp /usr/local/share/brightcon-environ/deploy/brightcon-environ.service \
         /etc/systemd/system/
 sudo systemctl daemon-reload
+```
+
+### 5. Restart and check
+
+```bash
 sudo systemctl restart brightcon-environ
+sudo systemctl status brightcon-environ
+sudo journalctl -u brightcon-environ -n 50 --no-pager
+```
+
+Optional API check:
+
+```bash
+curl -s https://your-server/path/to/healthz | python3 -m json.tool
+```
+
+The `version` field should match `environ --version`.
+
+### One-liner (no unit or env changes)
+
+When you only need code + dependencies and nothing in the unit or env file
+changed:
+
+```bash
+cd /usr/local/share/brightcon-environ && \
+  sudo git pull && \
+  sudo /opt/tljh/user/bin/uv pip install \
+      --python /opt/tljh/environ/venv/bin/python \
+      /usr/local/share/brightcon-environ && \
+  sudo systemctl restart brightcon-environ && \
+  /opt/tljh/environ/venv/bin/environ --version
 ```
 
 ## Local development setup

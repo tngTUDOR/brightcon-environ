@@ -335,7 +335,10 @@ sudo systemctl restart brightcon-environ
 
 ### Updating the service
 
-After pulling new code into the source clone:
+The unit runs `/opt/tljh/environ/venv/bin/environ serve`. Pulling git is not
+enough — reinstall into that venv, then restart. Full checklist (unit file,
+env secrets, `CHANGES.md`, health check): see
+[Updating the service](docs/deployment.md#updating-the-service) in the docs.
 
 ```bash
 cd /usr/local/share/brightcon-environ
@@ -343,16 +346,11 @@ sudo git pull
 sudo /opt/tljh/user/bin/uv pip install \
     --python /opt/tljh/environ/venv/bin/python \
     /usr/local/share/brightcon-environ
+# if deploy/brightcon-environ.service changed:
+#   sudo cp deploy/brightcon-environ.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
 sudo systemctl restart brightcon-environ
-```
-
-If the systemd unit file changed, also re-copy it:
-
-```bash
-sudo cp /usr/local/share/brightcon-environ/deploy/brightcon-environ.service \
-        /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl restart brightcon-environ
+/opt/tljh/environ/venv/bin/environ --version
 ```
 
 ## API endpoints

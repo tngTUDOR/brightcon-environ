@@ -1,7 +1,9 @@
 # Operating the service
 
-For a full TLJH deployment guide see {doc}`deployment`. For common problems
-see {doc}`troubleshooting`.
+For a full TLJH deployment guide see {doc}`deployment`. For upgrading an
+existing install after a new brightcon-environ release, see
+[Updating the service](deployment.md#updating-the-service). For common
+problems see {doc}`troubleshooting`.
 
 ## Command line
 
