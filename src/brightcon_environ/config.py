@@ -14,7 +14,9 @@ from pathlib import Path
 DEFAULT_CONFIG_PATH = Path("/opt/tljh/config/environ.toml")
 SECRET_ENV_VAR = "GITHUB_WEBHOOK_SECRET"
 ADMIN_TOKEN_ENV_VAR = "ENVIRON_ADMIN_TOKEN"
-CHECKS_TOKEN_ENV_VAR = "GITHUB_CHECKS_TOKEN"
+GITHUB_APP_ID_ENV_VAR = "GITHUB_APP_ID"
+GITHUB_APP_INSTALLATION_ID_ENV_VAR = "GITHUB_APP_INSTALLATION_ID"
+GITHUB_APP_PRIVATE_KEY_FILE_ENV_VAR = "GITHUB_APP_PRIVATE_KEY_FILE"
 CONFIG_PATH_ENV_VAR = "ENVIRON_CONFIG"
 
 
@@ -95,9 +97,20 @@ class Config:
         return os.environ.get(ADMIN_TOKEN_ENV_VAR) or None
 
     @property
-    def checks_token(self) -> str | None:
-        """Fine-grained PAT (Checks: write) for reporting Check Runs. Optional."""
-        return os.environ.get(CHECKS_TOKEN_ENV_VAR) or None
+    def github_app_id(self) -> str | None:
+        """GitHub App ID used to mint installation tokens for Check Runs."""
+        return os.environ.get(GITHUB_APP_ID_ENV_VAR) or None
+
+    @property
+    def github_app_installation_id(self) -> str | None:
+        """Installation ID of the App on the definitions repository."""
+        return os.environ.get(GITHUB_APP_INSTALLATION_ID_ENV_VAR) or None
+
+    @property
+    def github_app_private_key_file(self) -> Path | None:
+        """Path to the App private key PEM (mode 0600, not under /opt/tljh)."""
+        value = os.environ.get(GITHUB_APP_PRIVATE_KEY_FILE_ENV_VAR)
+        return Path(value).expanduser() if value else None
 
 
 def _path(value: object, name: str) -> Path:

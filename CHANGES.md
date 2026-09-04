@@ -10,12 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - GitHub Check Runs named `environ` so definitions-repo contributors can read
-  Linux build logs on a pull request. Optional `GITHUB_CHECKS_TOKEN` (fine-grained
-  PAT with Checks: write); if unset, jobs still run and nothing is posted.
+  Linux build logs on a pull request. Auth is a **GitHub App**
+  (`GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY_FILE`);
+  the service mints short-lived installation tokens. If unset, jobs still run
+  and nothing is posted.
 - `pull_request` webhooks (`opened` / `synchronize` / `reopened` targeting the
   watched branch) **validate** definitions in a disposable staging tree without
   touching live environments or shared kernels. Push to the watched branch still
   **applies** to the hub.
+
+### Changed
+
+- Check Run credentials are a GitHub App, not a fine-grained PAT.
+  Personal access tokens cannot create Check Runs.
+- Dedicated admin guide {doc}`github-app` with ultra-detailed App creation,
+  install, PEM placement and smoke-test steps.
 
 ## [1.0.0]
 

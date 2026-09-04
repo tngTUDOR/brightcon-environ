@@ -173,9 +173,15 @@ def test_pull_request_closed_is_ignored(client: TestClient, queue: IdleQueue):
     assert queue.recent() == []
 
 
-def test_push_without_checks_token_still_queues(config: Config, monkeypatch):
+def test_push_without_github_app_still_queues(config: Config, monkeypatch):
     monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", SECRET)
-    monkeypatch.delenv("GITHUB_CHECKS_TOKEN", raising=False)
+    for name in (
+        "GITHUB_APP_ID",
+        "GITHUB_APP_INSTALLATION_ID",
+        "GITHUB_APP_PRIVATE_KEY_FILE",
+        "GITHUB_CHECKS_TOKEN",
+    ):
+        monkeypatch.delenv(name, raising=False)
     queue = IdleQueue(config)  # real NullChecksClient from config
     with TestClient(create_app(config, queue)) as client:
         response = deliver(client, push())

@@ -1,7 +1,9 @@
 """Report job outcomes as GitHub Check Runs on the definitions repository.
 
-When ``GITHUB_CHECKS_TOKEN`` is unset, all operations are no-ops so existing
-deployments keep working without Checks. API failures never fail a build.
+Check Runs write access requires a GitHub App. When App ID, installation ID and
+private key path are all set, the service mints short-lived installation tokens.
+Otherwise every operation is a no-op so existing deployments keep working.
+API failures never fail a build.
 """
 
 from __future__ import annotations
@@ -9,10 +11,16 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
+import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Protocol
+
+import jwt
 
 from .config import Config
 
@@ -22,6 +30,10 @@ CHECK_NAME = "environ"
 API_BASE = "https://api.github.com"
 # GitHub caps ``output.text``; stay safely under the documented 65535 limit.
 MAX_OUTPUT_TEXT = 60_000
+# Refresh the installation token this many seconds before GitHub's expires_at.
+TOKEN_REFRESH_SKEW_SECONDS = 60
+# App JWTs should be short-lived (GitHub allows at most 10 minutes).
+APP_JWT_LIFETIME_SECONDS = 9 * 60
 
 _HTTPS_RE = re.compile(
     r"^https://github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?/?$"
@@ -86,9 +98,105 @@ class NullChecksClient:
         return None
 
 
+def _github_request(
+    method: str,
+    url: str,
+    *,
+    token: str,
+    payload: dict | None = None,
+) -> dict | None:
+    body = None if payload is None else json.dumps(payload).encode("utf-8")
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "User-Agent": "brightcon-environ",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    if body is not None:
+        headers["Content-Type"] = "application/json"
+    request = urllib.request.Request(url, data=body, method=method, headers=headers)
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            raw = response.read()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:500]
+        logger.warning(
+            "GitHub API %s %s failed: HTTP %s %s", method, url, exc.code, detail
+        )
+        return None
+    except OSError as exc:
+        logger.warning("GitHub API %s %s failed: %s", method, url, exc)
+        return None
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.warning("GitHub API returned non-JSON for %s %s", method, url)
+        return None
+    return data if isinstance(data, dict) else None
+
+
+@dataclass
+class InstallationTokenSource:
+    """Mint and cache GitHub App installation access tokens."""
+
+    app_id: str
+    installation_id: str
+    private_key_pem: str
+    api_base: str = API_BASE
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _token: str | None = field(default=None, repr=False)
+    _expires_at: float = field(default=0.0, repr=False)
+
+    def get_token(self) -> str | None:
+        with self._lock:
+            now = time.time()
+            if self._token and now < self._expires_at - TOKEN_REFRESH_SKEW_SECONDS:
+                return self._token
+            minted = self._mint()
+            if minted is None:
+                return None
+            token, expires_at = minted
+            self._token = token
+            self._expires_at = expires_at
+            return token
+
+    def _app_jwt(self) -> str:
+        now = datetime.now(UTC)
+        payload = {
+            "iat": int(now.timestamp()) - 60,
+            "exp": int((now + timedelta(seconds=APP_JWT_LIFETIME_SECONDS)).timestamp()),
+            "iss": self.app_id,
+        }
+        return jwt.encode(payload, self.private_key_pem, algorithm="RS256")
+
+    def _mint(self) -> tuple[str, float] | None:
+        url = f"{self.api_base}/app/installations/{self.installation_id}/access_tokens"
+        data = _github_request("POST", url, token=self._app_jwt(), payload={})
+        if data is None:
+            return None
+        token = data.get("token")
+        expires_at_raw = data.get("expires_at")
+        if not isinstance(token, str) or not token:
+            logger.warning("GitHub installation token response missing token")
+            return None
+        expires_at = time.time() + 3600
+        if isinstance(expires_at_raw, str):
+            try:
+                expires_at = datetime.fromisoformat(
+                    expires_at_raw.replace("Z", "+00:00")
+                ).timestamp()
+            except ValueError:
+                logger.warning(
+                    "could not parse installation token expires_at %r", expires_at_raw
+                )
+        return token, expires_at
+
+
 @dataclass
 class GitHubChecksClient:
-    token: str
+    tokens: InstallationTokenSource
     owner: str
     repo: str
     api_base: str = API_BASE
@@ -143,56 +251,44 @@ class GitHubChecksClient:
         )
 
     def _request(self, method: str, path: str, payload: dict) -> dict | None:
+        token = self.tokens.get_token()
+        if token is None:
+            return None
         url = f"{self.api_base}/repos/{self.owner}/{self.repo}{path}"
-        body = json.dumps(payload).encode("utf-8")
-        request = urllib.request.Request(
-            url,
-            data=body,
-            method=method,
-            headers={
-                "Accept": "application/vnd.github+json",
-                "Authorization": f"Bearer {self.token}",
-                "Content-Type": "application/json",
-                "User-Agent": "brightcon-environ",
-                "X-GitHub-Api-Version": "2022-11-28",
-            },
-        )
-        try:
-            with urllib.request.urlopen(request, timeout=30) as response:
-                raw = response.read()
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")[:500]
-            logger.warning(
-                "GitHub Checks %s %s failed: HTTP %s %s",
-                method,
-                path,
-                exc.code,
-                detail,
-            )
-            return None
-        except OSError as exc:
-            logger.warning("GitHub Checks %s %s failed: %s", method, path, exc)
-            return None
-        if not raw:
-            return {}
-        try:
-            data = json.loads(raw)
-        except json.JSONDecodeError:
-            logger.warning("GitHub Checks returned non-JSON for %s %s", method, path)
-            return None
-        return data if isinstance(data, dict) else None
+        return _github_request(method, url, token=token, payload=payload)
+
+
+def _load_private_key(path: Path) -> str | None:
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError as exc:
+        logger.warning("cannot read GitHub App private key %s: %s", path, exc)
+        return None
 
 
 def checks_client_from_config(config: Config) -> ChecksClient:
-    token = config.checks_token
-    if not token:
+    app_id = config.github_app_id
+    installation_id = config.github_app_installation_id
+    key_file = config.github_app_private_key_file
+    if not app_id or not installation_id or key_file is None:
         return NullChecksClient()
+
     parsed = parse_github_repo(config.repo.url)
     if parsed is None:
         logger.info(
-            "GITHUB_CHECKS_TOKEN is set but repo.url is not a github.com remote; "
+            "GitHub App credentials are set but repo.url is not a github.com remote; "
             "Check Runs disabled"
         )
         return NullChecksClient()
+
+    pem = _load_private_key(key_file)
+    if pem is None:
+        return NullChecksClient()
+
     owner, repo = parsed
-    return GitHubChecksClient(token=token, owner=owner, repo=repo)
+    tokens = InstallationTokenSource(
+        app_id=app_id,
+        installation_id=installation_id,
+        private_key_pem=pem,
+    )
+    return GitHubChecksClient(tokens=tokens, owner=owner, repo=repo)

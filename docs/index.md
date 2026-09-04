@@ -13,8 +13,8 @@ requirement lists, and uv project metadata.
 [For contributors](for-contributors.md) — how to add `environment-*.yml` or
 `requirements-*.txt`, open a PR, and read the **environ** Check for Linux logs.
 
-**Server admin or maintainer?** Continue below, then see [Deployment](deployment.md)
-and [Configuration](configuration.md).
+**Server admin or maintainer?** Continue below, then see [Deployment](deployment.md),
+[GitHub App for Check Runs](github-app.md) and [Configuration](configuration.md).
 ```
 
 ## What happens on a push
@@ -45,6 +45,7 @@ for-contributors
 environments
 configuration
 deployment
+github-app
 operating
 troubleshooting
 development

@@ -106,25 +106,32 @@ Edit the file and set the secrets:
 ```
 GITHUB_WEBHOOK_SECRET=<paste the same secret you configure on the GitHub webhook>
 ENVIRON_ADMIN_TOKEN=<a token of your choice for manual POST /rebuild calls>
-GITHUB_CHECKS_TOKEN=<fine-grained PAT with Checks: Read and write on the definitions repo>
+GITHUB_APP_ID=<App ID integer>
+GITHUB_APP_INSTALLATION_ID=<installation ID integer>
+GITHUB_APP_PRIVATE_KEY_FILE=/etc/brightcon-environ/github-app.pem
 ```
 
-Generate strong random values for the first two with:
+Generate strong random values for the webhook secret and admin token with:
 
 ```bash
 openssl rand -hex 32
 ```
 
-Create `GITHUB_CHECKS_TOKEN` as a fine-grained personal access token (or GitHub
-App installation token) with access to the **definitions** repository and
-permission **Checks: Read and write**. Without it, rebuilds still run but
-contributors will not see an **environ** check on their PR.
+Check Runs need a **GitHub App** on the definitions repository (PATs cannot
+create them). Follow the full walkthrough in {doc}`github-app` (create under
+the org, disable the App webhook, Checks read/write, install on the
+definitions repo, copy App ID / Installation ID / PEM onto the server).
+
+Without the three `GITHUB_APP_*` values, rebuilds still run but contributors
+will not see an **environ** check on their PR.
 
 | Variable | Purpose |
 | --- | --- |
 | `GITHUB_WEBHOOK_SECRET` | Shared secret for `X-Hub-Signature-256` verification. Must match the secret in GitHub webhook settings. |
 | `ENVIRON_ADMIN_TOKEN` | Bearer token for the `POST /rebuild` endpoint. Only needed if you want to trigger manual rebuilds via the API. |
-| `GITHUB_CHECKS_TOKEN` | Optional. Posts Check Runs on the definitions repo so PR authors can read Linux build logs. |
+| `GITHUB_APP_ID` | Optional. GitHub App ID used to mint installation tokens for Check Runs. |
+| `GITHUB_APP_INSTALLATION_ID` | Optional. Installation ID of that App on the definitions repo. |
+| `GITHUB_APP_PRIVATE_KEY_FILE` | Optional. Path to the App private key PEM. |
 
 `ENVIRON_CONFIG` is **not** a secret -- it is a plain path to the configuration
 file and is set in the systemd unit, not in the env file.

@@ -1,6 +1,6 @@
 [project]
 name = "brightcon-environ"
-version = "2.0.0.dev1"
+version = "2.0.0.dev2"
 description = "Rebuild JupyterHub Python environments from GitHub push webhooks"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -8,6 +8,7 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "pyyaml>=6.0",
+    "PyJWT[crypto]>=2.8",
 ]
 
 [project.scripts]

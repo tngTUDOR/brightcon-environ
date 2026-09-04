@@ -12,16 +12,23 @@ Secrets are never stored in the file; they come from the environment.
 | --- | --- |
 | `GITHUB_WEBHOOK_SECRET` | shared secret for the `X-Hub-Signature-256` check |
 | `ENVIRON_ADMIN_TOKEN` | bearer token for `POST /rebuild` |
-| `GITHUB_CHECKS_TOKEN` | optional fine-grained PAT with **Checks: Read and write** on the definitions repo; used to post Check Runs |
+| `GITHUB_APP_ID` | optional GitHub App ID for posting Check Runs |
+| `GITHUB_APP_INSTALLATION_ID` | optional installation ID on the definitions repo |
+| `GITHUB_APP_PRIVATE_KEY_FILE` | optional path to the App private key PEM |
 | `ENVIRON_CONFIG` | path to the configuration file |
 
 `GITHUB_WEBHOOK_SECRET` is mandatory. Without it the webhook endpoint fails
 closed with `503` and refuses every delivery, rather than accepting
 unauthenticated builds.
 
-`GITHUB_CHECKS_TOKEN` is optional. Without it, jobs still run; contributors
-just will not see an **environ** check on the PR. The token is never stored in
-the TOML file.
+Check Runs require a **GitHub App** (personal access tokens cannot create them).
+When `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID` and
+`GITHUB_APP_PRIVATE_KEY_FILE` are all set, the service mints short-lived
+installation tokens and posts an **environ** check on each job. If any are
+missing, jobs still run and nothing is posted to GitHub. Keep the PEM under
+`/etc/brightcon-environ/` (mode `0600`), never under world-readable `/opt/tljh`.
+
+Step-by-step App creation and install: {doc}`github-app`.
 
 ## Settings
 
