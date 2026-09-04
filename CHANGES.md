@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Added
 
 - GitHub Check Runs named `environ` so definitions-repo contributors can read
@@ -18,13 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   watched branch) **validate** definitions in a disposable staging tree without
   touching live environments or shared kernels. Push to the watched branch still
   **applies** to the hub.
+- Dedicated admin guide `docs/github-app.md` with App creation, install, PEM
+  placement and smoke-test steps.
+- Expanded “Updating the service” section in the deployment docs for reinstalling
+  into the systemd venv after a release.
 
 ### Changed
 
 - Check Run credentials are a GitHub App, not a fine-grained PAT.
   Personal access tokens cannot create Check Runs.
-- Dedicated admin guide {doc}`github-app` with ultra-detailed App creation,
-  install, PEM placement and smoke-test steps.
 
 ## [1.0.0]
 
