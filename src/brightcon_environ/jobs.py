@@ -76,7 +76,7 @@ class StateStore:
             return
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+        except OSError, json.JSONDecodeError:
             return
         entries = raw.get("environments", {})
         if not isinstance(entries, dict):

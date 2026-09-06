@@ -20,6 +20,9 @@ jobs:
           enable-cache: true
           # Parallel jobs race when they share a cache key; suffix by job name.
           cache-suffix: ${{ github.job }}
+          # Bandit must parse on 3.14 (PEP 758 paren-less except); uvx defaults
+          # can land on older interpreters and silently skip files.
+          python-version: "3.14"
 
       - name: Install the project
         run: uv sync --locked
@@ -31,7 +34,7 @@ jobs:
         run: uv run --no-sync ruff format --check .
 
       - name: bandit
-        run: uvx bandit -c pyproject.toml -r src
+        run: uv run --no-sync bandit -c pyproject.toml -r src
 
   test:
     runs-on: ubuntu-latest
@@ -43,6 +46,7 @@ jobs:
         with:
           enable-cache: true
           cache-suffix: ${{ github.job }}
+          python-version: "3.14"
 
       - name: Install the project
         run: uv sync --locked

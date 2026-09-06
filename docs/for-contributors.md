@@ -38,7 +38,7 @@ Replace `<name>` with a short, lowercase slug — what users will see internally
 | `requirements-ml.txt` | `ml` |
 | `pyproject-tools.toml` | `tools` |
 
-**Allowed:** lowercase letters, digits, `.`, `-`, `_` — max 64 characters.  
+**Allowed:** lowercase letters, digits, `.`, `-`, `_` — max 64 characters.
 **Forbidden names:** `user`, `hub`, `base`, `root`, `python3`, `envs`, `share`.
 
 Examples that **will be rejected:** `environment-Intro.yml`, `requirements-My Course.txt`.

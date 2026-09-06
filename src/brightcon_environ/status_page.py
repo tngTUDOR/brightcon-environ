@@ -66,12 +66,30 @@ STATUS_HTML = """\
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
-  .pill.ok { background: color-mix(in srgb, var(--ok) 25%, transparent); color: var(--ok); }
-  .pill.fail { background: color-mix(in srgb, var(--fail) 25%, transparent); color: var(--fail); }
-  .pill.running { background: color-mix(in srgb, var(--run) 25%, transparent); color: var(--run); }
-  .pill.queued { background: color-mix(in srgb, var(--queued) 25%, transparent); color: var(--queued); }
-  .pill.succeeded { background: color-mix(in srgb, var(--ok) 25%, transparent); color: var(--ok); }
-  .pill.failed { background: color-mix(in srgb, var(--fail) 25%, transparent); color: var(--fail); }
+  .pill.ok {
+    background: color-mix(in srgb, var(--ok) 25%, transparent);
+    color: var(--ok);
+  }
+  .pill.fail {
+    background: color-mix(in srgb, var(--fail) 25%, transparent);
+    color: var(--fail);
+  }
+  .pill.running {
+    background: color-mix(in srgb, var(--run) 25%, transparent);
+    color: var(--run);
+  }
+  .pill.queued {
+    background: color-mix(in srgb, var(--queued) 25%, transparent);
+    color: var(--queued);
+  }
+  .pill.succeeded {
+    background: color-mix(in srgb, var(--ok) 25%, transparent);
+    color: var(--ok);
+  }
+  .pill.failed {
+    background: color-mix(in srgb, var(--fail) 25%, transparent);
+    color: var(--fail);
+  }
   .spacer { flex: 1; }
   .updated { color: var(--muted); font-size: 0.8rem; }
   .err {
@@ -223,10 +241,12 @@ STATUS_HTML = """\
     return u.pathname + u.search;
   }
 
-  ["link-healthz", "link-jobs", "link-environments", "link-docs"].forEach(function (id) {
-    const a = document.getElementById(id);
-    if (a) a.setAttribute("href", apiUrl(a.getAttribute("href")));
-  });
+  ["link-healthz", "link-jobs", "link-environments", "link-docs"].forEach(
+    function (id) {
+      const a = document.getElementById(id);
+      if (a) a.setAttribute("href", apiUrl(a.getAttribute("href")));
+    }
+  );
 
   function esc(s) {
     if (s == null) return "";
@@ -352,7 +372,12 @@ STATUS_HTML = """\
     for (const j of list) {
       const sel = j.id === selectedJobId ? " selected" : "";
       html += '<tr class="selectable' + sel + '" data-job-id="' + esc(j.id) + '">';
-      html += '<td><span class="pill ' + esc(j.status) + '">' + esc(j.status) + "</span></td>";
+      html +=
+        '<td><span class="pill ' +
+        esc(j.status) +
+        '">' +
+        esc(j.status) +
+        "</span></td>";
       html += "<td class='mono'>" + esc(j.id) + "</td>";
       html += "<td>" + esc(j.mode) + "</td>";
       html += "<td>" + esc(j.trigger);

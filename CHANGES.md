@@ -7,16 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.3]
+
+### Fixed
+
+- CI Bandit runs via `uv run` on Python 3.14 so PEP 758 paren-less `except`
+  clauses are scanned instead of skipped on older interpreters.
+
 ## [2.1.2]
 
 ### Added
 
 - Bandit security scan of `src/` via pre-commit and the CI lint job.
-
-### Fixed
-
-- `except` clause in `jobs.py` used invalid Python 3 multi-exception syntax
-  (blocked Bandit from scanning the file).
 
 ## [2.1.1]
 

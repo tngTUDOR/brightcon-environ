@@ -565,7 +565,7 @@ Or run the tools directly:
 ```bash
 uv run ruff format .
 uv run ruff check --fix .
-uvx bandit -c pyproject.toml -r src
+uv run bandit -c pyproject.toml -r src
 ```
 
 Module map:
