@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1]
+
+### Fixed
+
+- Status dashboard and OpenAPI docs resolve URLs under a reverse-proxy path
+  prefix (no more `/healthz` / `/openapi.json` hits at the site root).
+
 ## [2.1.0]
 
 ### Added

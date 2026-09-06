@@ -7,6 +7,8 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, HTTPException, Request, Response
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
@@ -50,14 +52,48 @@ def create_app(
         yield
         queue.stop()
 
+    # Disable stock /docs and /redoc: their HTML hard-codes absolute
+    # "/openapi.json", which 404s when the app is behind a path-prefix proxy.
     app = FastAPI(
         title="brightcon-environ",
         version=__version__,
         summary="Rebuild JupyterHub environments from GitHub push webhooks",
         lifespan=lifespan,
+        docs_url=None,
+        redoc_url=None,
     )
     app.state.config = config
     app.state.queue = queue
+
+    def custom_openapi() -> dict:
+        if app.openapi_schema is not None:
+            return app.openapi_schema
+        schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            summary=app.summary,
+            routes=app.routes,
+        )
+        # Relative to /openapi.json so Try-it-out stays under the proxy prefix.
+        schema["servers"] = [{"url": "."}]
+        app.openapi_schema = schema
+        return app.openapi_schema
+
+    app.openapi = custom_openapi
+
+    @app.get("/docs", include_in_schema=False)
+    def swagger_ui() -> HTMLResponse:
+        return get_swagger_ui_html(
+            openapi_url="openapi.json",
+            title=f"{app.title} - Swagger UI",
+        )
+
+    @app.get("/redoc", include_in_schema=False)
+    def redoc_ui() -> HTMLResponse:
+        return get_redoc_html(
+            openapi_url="openapi.json",
+            title=f"{app.title} - ReDoc",
+        )
 
     async def _read_body(request: Request) -> bytes:
         declared = request.headers.get("content-length")

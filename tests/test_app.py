@@ -126,6 +126,21 @@ def test_status_page(client: TestClient):
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "<title>brightcon-environ</title>" in response.text
+    # Must not hard-code site-root absolute API paths (breaks under a URL prefix).
+    assert 'fetch("/healthz"' not in response.text
+    assert "function apiUrl(" in response.text
+    assert 'href="healthz"' in response.text
+
+
+def test_docs_use_relative_openapi_url(client: TestClient):
+    docs = client.get("/docs")
+    assert docs.status_code == 200
+    # Stock FastAPI embeds url: '/openapi.json' which 404s behind a path prefix.
+    assert "/openapi.json" not in docs.text
+    assert "openapi.json" in docs.text
+
+    schema = client.get("/openapi.json").json()
+    assert schema["servers"] == [{"url": "."}]
 
 
 def test_a_signed_push_to_main_is_queued(

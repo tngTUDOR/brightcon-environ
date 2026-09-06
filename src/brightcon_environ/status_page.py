@@ -201,10 +201,10 @@ STATUS_HTML = """\
 </main>
 <footer>
   Raw JSON:
-  <a href="/healthz">/healthz</a> ·
-  <a href="/jobs">/jobs</a> ·
-  <a href="/environments">/environments</a>
-  · OpenAPI <a href="/docs">/docs</a>
+  <a id="link-healthz" href="healthz">/healthz</a> ·
+  <a id="link-jobs" href="jobs">/jobs</a> ·
+  <a id="link-environments" href="environments">/environments</a>
+  · OpenAPI <a id="link-docs" href="docs">/docs</a>
 </footer>
 <script>
 (function () {
@@ -213,6 +213,20 @@ STATUS_HTML = """\
   let refreshGen = 0;
   let abort = null;
   let lastOkAt = null;
+
+  // Resolve API paths under the reverse-proxy prefix. Absolute "/healthz"
+  // would hit the site root when this page is served at e.g. /path/to/.
+  function apiUrl(path) {
+    let base = window.location.pathname;
+    if (!base.endsWith("/")) base += "/";
+    const u = new URL(String(path).replace(/^\\//, ""), window.location.origin + base);
+    return u.pathname + u.search;
+  }
+
+  ["link-healthz", "link-jobs", "link-environments", "link-docs"].forEach(function (id) {
+    const a = document.getElementById(id);
+    if (a) a.setAttribute("href", apiUrl(a.getAttribute("href")));
+  });
 
   function esc(s) {
     if (s == null) return "";
@@ -369,7 +383,7 @@ STATUS_HTML = """\
     title.textContent = "Log · " + id;
     pre.textContent = "Loading…";
     try {
-      const res = await fetch("/jobs/" + encodeURIComponent(id));
+      const res = await fetch(apiUrl("jobs/" + encodeURIComponent(id)));
       if (!res.ok) throw new Error("HTTP " + res.status);
       const detail = await res.json();
       if (selectedJobId !== id) return;
@@ -388,9 +402,9 @@ STATUS_HTML = """\
     const signal = abort.signal;
     try {
       const [hRes, jRes, eRes] = await Promise.all([
-        fetch("/healthz", { signal: signal }),
-        fetch("/jobs?limit=20", { signal: signal }),
-        fetch("/environments", { signal: signal }),
+        fetch(apiUrl("healthz"), { signal: signal }),
+        fetch(apiUrl("jobs?limit=20"), { signal: signal }),
+        fetch(apiUrl("environments"), { signal: signal }),
       ]);
       if (gen !== refreshGen) return;
       if (!hRes.ok || !jRes.ok || !eRes.ok) {
