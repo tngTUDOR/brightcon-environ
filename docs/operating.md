@@ -43,6 +43,7 @@ uv run environ serve            # http://127.0.0.1:8787
 
 | Endpoint | Purpose |
 | --- | --- |
+| `GET /` | HTML status dashboard (health, jobs, environments) |
 | `POST /hooks/github` | webhook receiver; requires a valid signature |
 | `POST /rebuild` | manual trigger; requires `Authorization: Bearer $ENVIRON_ADMIN_TOKEN` |
 | `GET /healthz` | liveness and current configuration summary |

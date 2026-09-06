@@ -121,6 +121,13 @@ def test_healthz(client: TestClient):
     assert response.json()["status"] == "ok"
 
 
+def test_status_page(client: TestClient):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "<title>brightcon-environ</title>" in response.text
+
+
 def test_a_signed_push_to_main_is_queued(
     client: TestClient, queue: IdleQueue, checks: RecordingChecks
 ):

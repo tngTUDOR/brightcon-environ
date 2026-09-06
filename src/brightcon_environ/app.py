@@ -7,6 +7,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, HTTPException, Request, Response
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from . import __version__
@@ -18,6 +19,7 @@ from .github_checks import ChecksClient
 from .jobs import Job, JobQueue, StateStore
 from .kernels import list_kernels
 from .security import MAX_BODY_BYTES, SIGNATURE_HEADER, verify_signature, verify_token
+from .status_page import STATUS_HTML
 
 logger = logging.getLogger("brightcon_environ")
 
@@ -65,6 +67,10 @@ def create_app(
         if len(body) > MAX_BODY_BYTES:
             raise HTTPException(status_code=413, detail="payload too large")
         return body
+
+    @app.get("/", response_class=HTMLResponse)
+    def status_page() -> str:
+        return STATUS_HTML
 
     @app.get("/healthz")
     def healthz() -> dict:

@@ -357,6 +357,7 @@ sudo systemctl restart brightcon-environ
 
 | Endpoint | Purpose |
 | --- | --- |
+| `GET /` | HTML status dashboard (health, jobs, environments) |
 | `POST /hooks/github` | Webhook receiver; requires a valid `X-Hub-Signature-256` |
 | `POST /rebuild` | Manual trigger; requires `Authorization: Bearer $ENVIRON_ADMIN_TOKEN` |
 | `GET /healthz` | Liveness check and current configuration summary |

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- HTML status dashboard at `GET /` that polls `/healthz`, `/jobs`, and
+  `/environments` in the browser (read-only; no rebuild controls).
+
 ## [2.0.0]
 
 ### Added
