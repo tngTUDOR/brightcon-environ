@@ -30,6 +30,9 @@ jobs:
       - name: ruff format
         run: uv run --no-sync ruff format --check .
 
+      - name: bandit
+        run: uvx bandit -c pyproject.toml -r src
+
   test:
     runs-on: ubuntu-latest
     steps:

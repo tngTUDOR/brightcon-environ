@@ -551,7 +551,8 @@ uv run pytest -m "not slow"    # fast: no network, no real environments
 uv run pytest                  # also builds a real venv with uv
 ```
 
-Formatting and linting are handled by ruff, wired up through pre-commit. Install
+Formatting and linting are handled by ruff, and Bandit scans `src/` for
+common security issues. Both are wired up through pre-commit. Install
 the git hook once after cloning:
 
 ```bash
@@ -559,11 +560,12 @@ uv run pre-commit install
 uv run pre-commit run --all-files   # optional: check everything now
 ```
 
-Or run ruff directly:
+Or run the tools directly:
 
 ```bash
 uv run ruff format .
 uv run ruff check --fix .
+uvx bandit -c pyproject.toml -r src
 ```
 
 Module map:

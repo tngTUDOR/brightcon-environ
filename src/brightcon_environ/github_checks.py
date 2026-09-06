@@ -14,6 +14,7 @@ import re
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -114,9 +115,14 @@ def _github_request(
     }
     if body is not None:
         headers["Content-Type"] = "application/json"
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme != "https":
+        logger.warning("GitHub API %s refused non-HTTPS URL: %s", method, url)
+        return None
     request = urllib.request.Request(url, data=body, method=method, headers=headers)
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        # Scheme checked above; urlopen still flagged because url is a variable.
+        with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310
             raw = response.read()
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:500]

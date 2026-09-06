@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 DEFAULT_CONFIG_PATH = Path("/opt/tljh/config/environ.toml")
-SECRET_ENV_VAR = "GITHUB_WEBHOOK_SECRET"
-ADMIN_TOKEN_ENV_VAR = "ENVIRON_ADMIN_TOKEN"
+SECRET_ENV_VAR = "GITHUB_WEBHOOK_SECRET"  # env var name, not a secret  # nosec B105
+ADMIN_TOKEN_ENV_VAR = "ENVIRON_ADMIN_TOKEN"  # env var name, not a secret  # nosec B105
 GITHUB_APP_ID_ENV_VAR = "GITHUB_APP_ID"
 GITHUB_APP_INSTALLATION_ID_ENV_VAR = "GITHUB_APP_INSTALLATION_ID"
 GITHUB_APP_PRIVATE_KEY_FILE_ENV_VAR = "GITHUB_APP_PRIVATE_KEY_FILE"

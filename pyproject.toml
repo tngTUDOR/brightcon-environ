@@ -49,3 +49,6 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["B011"]
+
+[tool.bandit]
+exclude_dirs = ["tests", ".pre-commit-cache", "docs"]

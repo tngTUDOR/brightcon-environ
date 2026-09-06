@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Bandit security scan of `src/` via pre-commit and the CI lint job.
+
+### Fixed
+
+- `except` clause in `jobs.py` used invalid Python 3 multi-exception syntax
+  (blocked Bandit from scanning the file).
+
 ## [2.1.1]
 
 ### Fixed

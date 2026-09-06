@@ -7,7 +7,7 @@ shell, with output streamed line by line into the job log.
 from __future__ import annotations
 
 import shlex
-import subprocess
+import subprocess  # argv lists only; see run()  # nosec B404
 import threading
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -57,7 +57,7 @@ def run(
     if log:
         log(f"$ {shlex.join(argv)}")
 
-    process = subprocess.Popen(  # noqa: S603 - argv is a list, shell is never used
+    process = subprocess.Popen(  # argv list, never shell  # noqa: S603  # nosec B603
         argv,
         cwd=str(cwd) if cwd else None,
         env=dict(env) if env is not None else None,
@@ -72,8 +72,10 @@ def run(
     collected: list[str] = []
 
     def drain() -> None:
-        assert process.stdout is not None
-        for raw in process.stdout:
+        stdout = process.stdout
+        if stdout is None:
+            raise RuntimeError("subprocess stdout pipe was not created")
+        for raw in stdout:
             line = raw.rstrip("\n")
             collected.append(line)
             if log:

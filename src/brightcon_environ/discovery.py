@@ -195,7 +195,8 @@ def _conda_spec(repo_root: Path, relpath: str, match: _Match) -> EnvSpec:
 def _venv_spec(
     repo_root: Path, relpath: str, match: _Match, defaults: DefaultsConfig
 ) -> EnvSpec:
-    assert match.name is not None
+    if match.name is None:
+        raise DiscoveryError(f"{relpath}: internal error: missing environment name")
     name = validate_name(match.name, origin=relpath)
     text = _read(repo_root, relpath)
     headers = parse_headers(text)
@@ -216,7 +217,8 @@ def _venv_spec(
 def _uv_project_spec(
     repo_root: Path, relpath: str, match: _Match, defaults: DefaultsConfig
 ) -> EnvSpec:
-    assert match.name is not None
+    if match.name is None:
+        raise DiscoveryError(f"{relpath}: internal error: missing environment name")
     name = validate_name(match.name, origin=relpath)
     text = _read(repo_root, relpath)
     try:
