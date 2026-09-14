@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.4]
+
+### Fixed
+
+- Redirect uv-managed Python installs (`UV_PYTHON_INSTALL_DIR`, `XDG_DATA_HOME`)
+  under `/opt/tljh/environ/cache/` so `uv venv --python …` does not write to
+  `/root/.local/share/uv/python` when `ProtectHome=read-only` is set.
+
 ## [2.1.3]
 
 ### Fixed

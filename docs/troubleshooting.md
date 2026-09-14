@@ -36,7 +36,11 @@ The systemd unit lists paths in `ReadWritePaths=` that do not exist yet.
 Create the missing directories before starting the service:
 
 ```bash
-sudo mkdir -p /opt/tljh/environ/cache/uv /opt/tljh/environ/cache/conda/pkgs
+sudo mkdir -p \
+    /opt/tljh/environ/cache/uv \
+    /opt/tljh/environ/cache/uv-python \
+    /opt/tljh/environ/cache/share \
+    /opt/tljh/environ/cache/conda/pkgs
 sudo systemctl daemon-reload
 sudo systemctl restart brightcon-environ
 ```
@@ -48,11 +52,19 @@ Could not create temporary file
 Caused by: Read-only file system (os error 30) at path "/root/.cache/uv/..."
 ```
 
+or, when `uv venv --python 3.11` (or another version) needs a managed interpreter:
+
+```
+Could not create temporary file
+Caused by: Read-only file system (os error 30) at path "/root/.local/share/uv/python/..."
+```
+
 The systemd unit has `ProtectHome=read-only`, which makes `/root` read-only.
-Tool caches must be redirected elsewhere. The current unit file sets
-`UV_CACHE_DIR`, `CONDA_PKGS_DIRS` and `XDG_CACHE_HOME` to directories under
-`/opt/tljh/environ/cache/`. If you are using an older version of the unit file,
-update it from `deploy/brightcon-environ.service` and re-copy.
+Tool caches and uv-managed CPython installs must be redirected elsewhere. The
+current unit file sets `UV_CACHE_DIR`, `UV_PYTHON_INSTALL_DIR`,
+`CONDA_PKGS_DIRS`, `XDG_CACHE_HOME` and `XDG_DATA_HOME` to directories under
+`/opt/tljh/environ/cache/`. Create those directories, copy the unit from
+`deploy/brightcon-environ.service`, then `daemon-reload` and restart.
 
 ## `dubious ownership` from git
 

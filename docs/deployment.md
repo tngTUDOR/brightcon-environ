@@ -65,6 +65,8 @@ sudo mkdir -p \
     /opt/tljh/environ/state \
     /opt/tljh/environ/logs \
     /opt/tljh/environ/cache/uv \
+    /opt/tljh/environ/cache/uv-python \
+    /opt/tljh/environ/cache/share \
     /opt/tljh/environ/cache/conda/pkgs
 sudo chmod -R a+rX /opt/tljh
 ```
@@ -154,9 +156,9 @@ sudo journalctl -u brightcon-environ -n 20
 
 The unit runs as root because creating environments under `/opt/tljh/user` and
 writing shared kernelspecs are root operations -- the same ones a TLJH admin
-performs with `sudo` from a notebook terminal. Tool caches are redirected under
-`/opt/tljh/environ/cache/` so `ProtectHome=read-only` does not block uv or
-conda.
+performs with `sudo` from a notebook terminal. Tool caches and uv-managed
+CPython installs are redirected under `/opt/tljh/environ/cache/` so
+`ProtectHome=read-only` does not block uv or conda.
 
 ## Step 7: Configure the GitHub webhook
 
